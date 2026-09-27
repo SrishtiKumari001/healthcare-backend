@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vitals — Healthcare Records</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B1220;
+    --surface:#101A2E;
+    --surface-2:#152238;
+    --border:#223049;
+    --text:#EAF2F5;
+    --muted:#7C8CA6;
+    --mint:#34E4B4;
+    --mint-dim:#1E7A61;
+    --coral:#FF6B6B;
+    --amber:#F5B95B;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.serif{font-family:'Spectral',serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  ::selection{background:var(--mint);color:#04140F;}
+  a{color:inherit;}
+
+  /* ---------- Layout scaffolding ---------- */
+  #app{display:none;min-height:100vh;grid-template-columns:248px 1fr;}
+  #app.active{display:grid;}
+
+  .sidebar{
+    background:var(--surface);
+    border-right:1px solid var(--border);
+    padding:28px 18px;
+    display:flex;flex-direction:column;
+    position:sticky;top:0;height:100vh;
+  }
+  .brand{display:flex;align-items:center;gap:10px;padding:0 8px 28px;}
+  .brand .pulse-dot{width:9px;height:9px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 0 rgba(52,228,180,.6);animation:pulseDot 2s infinite;}
+  @keyframes pulseDot{
+    0%{box-shadow:0 0 0 0 rgba(52,228,180,.55);}
+    70%{box-shadow:0 0 0 8px rgba(52,228,180,0);}
+    100%{box-shadow:0 0 0 0 rgba(52,228,180,0);}
+  }
+  .brand-name{font-family:'Spectral',serif;font-size:19px;font-weight:600;letter-spacing:.2px;}
+  .brand-name span{color:var(--mint);}
+
+  nav.navlist{display:flex;flex-direction:column;gap:2px;margin-top:8px;}
+  .navlink{
+    display:flex;align-items:center;gap:11px;
+    padding:10px 12px;border-radius:8px;
+    color:var(--muted);font-size:14.5px;font-weight:500;
+    cursor:pointer;border:1px solid transparent;
+    transition:background .15s ease,color .15s ease;
+  }
+  .navlink svg{width:17px;height:17px;flex-shrink:0;}
+  .navlink:hover{background:var(--surface-2);color:var(--text);}
+  .navlink.active{background:var(--surface-2);color:var(--mint);border-color:var(--border);}
+
+  .sidebar-foot{margin-top:auto;padding-top:16px;border-top:1px solid var(--border);}
+  .who{display:flex;align-items:center;gap:10px;padding:6px 8px;}
+  .avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--mint),#1c8c6c);display:flex;align-items:center;justify-content:center;font-weight:700;color:#04140F;font-size:13px;flex-shrink:0;}
+  .who-name{font-size:13.5px;font-weight:600;}
+  .who-mail{font-size:11.5px;color:var(--muted);}
+  .logout-btn{margin-top:10px;width:100%;background:none;border:1px solid var(--border);color:var(--muted);padding:8px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;}
+  .logout-btn:hover{color:var(--coral);border-color:var(--coral);}
+
+  main.content{padding:32px 40px 60px;max-width:1180px;}
+  .page{display:none;}
+  .page.active{display:block;animation:fadeIn .35s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+  .page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:26px;flex-wrap:wrap;gap:14px;}
+  .page-title{font-size:26px;font-weight:600;margin:0 0 4px;}
+  .page-sub{color:var(--muted);font-size:14px;margin:0;}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--mint);color:#04140F;border:none;
+    padding:10px 16px;border-radius:8px;font-weight:600;font-size:13.5px;
+    cursor:pointer;font-family:'Inter',sans-serif;transition:filter .15s ease, transform .1s ease;
+  }
+  .btn:hover{filter:brightness(1.08);}
+  .btn:active{transform:scale(.98);}
+  .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+  .btn.ghost:hover{border-color:var(--mint);color:var(--mint);}
+  .btn.danger{background:var(--coral);color:#2A0707;}
+  .btn.small{padding:6px 11px;font-size:12.5px;border-radius:7px;}
+
+  /* ---------- Stat cards ---------- */
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:30px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 18px 16px;}
+  .stat-label{font-size:12px;color:var(--muted);text-transform:none;margin-bottom:10px;}
+  .stat-value{font-family:'Spectral',serif;font-size:32px;font-weight:600;line-height:1;}
+  .stat-value sup{font-family:'Inter';font-size:13px;color:var(--mint);font-weight:600;margin-left:4px;}
+
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:26px;}
+  .panel-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .panel-head h3{margin:0;font-size:16px;font-weight:600;}
+
+  /* ECG strip in overview */
+  .ecg-wrap{padding:0 20px 18px;}
+  svg.ecg{width:100%;height:84px;display:block;}
+  .ecg-path{fill:none;stroke:var(--mint);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 6px rgba(52,228,180,.45));}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  thead th{text-align:left;color:var(--muted);font-weight:600;font-size:11.5px;padding:10px 20px;border-bottom:1px solid var(--border);}
+  tbody td{padding:13px 20px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:rgba(255,255,255,.015);}
+  .cell-main{font-weight:600;}
+  .cell-sub{color:var(--muted);font-size:12px;margin-top:2px;}
+  .pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--border);color:var(--muted);}
+  .pill.mint{color:var(--mint);border-color:var(--mint-dim);background:rgba(52,228,180,.08);}
+  .pill.amber{color:var(--amber);border-color:#7a5a26;background:rgba(245,185,91,.08);}
+  .row-actions{display:flex;gap:8px;justify-content:flex-end;}
+  .icon-btn{background:none;border:1px solid var(--border);color:var(--muted);width:30px;height:30px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;}
+  .icon-btn:hover{color:var(--text);border-color:var(--text);}
+  .icon-btn.del:hover{color:var(--coral);border-color:var(--coral);}
+  .icon-btn svg{width:14px;height:14px;}
+
+  .empty{padding:44px 20px;text-align:center;color:var(--muted);}
+  .empty .serif{font-size:16px;color:var(--text);display:block;margin-bottom:6px;}
+
+  /* ---------- Modal ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(4,8,16,.65);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .overlay.active{display:flex;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:100%;max-width:440px;padding:26px;max-height:88vh;overflow-y:auto;}
+  .modal h3{margin:0 0 4px;font-size:19px;}
+  .modal .modal-sub{color:var(--muted);font-size:13px;margin:0 0 18px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:500;}
+  .field input,.field select{
+    width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+    padding:10px 12px;border-radius:8px;font-size:14px;font-family:'Inter',sans-serif;
+  }
+  .field input:focus,.field select:focus{outline:none;border-color:var(--mint);}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .modal-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end;}
+  .checkbox-row{display:flex;align-items:center;gap:8px;margin-bottom:16px;}
+  .checkbox-row input{width:auto;}
+  .checkbox-row label{margin:0;color:var(--text);font-size:13.5px;}
+
+  /* ---------- Auth screen ---------- */
+  #auth{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;}
+  .auth-hero{
+    background:radial-gradient(circle at 20% 20%, #132038 0%, #0B1220 70%);
+    border-right:1px solid var(--border);
+    display:flex;flex-direction:column;justify-content:center;
+    padding:60px 64px;position:relative;overflow:hidden;
+  }
+  .auth-hero .tag{color:var(--mint);font-size:12.5px;font-weight:600;margin-bottom:18px;font-family:'JetBrains Mono',monospace;letter-spacing:.3px;}
+  .auth-hero h1{font-size:40px;line-height:1.18;margin:0 0 18px;max-width:460px;}
+  .auth-hero p{color:var(--muted);font-size:15px;line-height:1.6;max-width:400px;margin:0 0 34px;}
+  .hero-ecg-box{border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:18px 20px 6px;max-width:460px;}
+  .hero-ecg-box .hlabel{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-bottom:6px;font-family:'JetBrains Mono',monospace;}
+  svg.hero-ecg{width:100%;height:100px;}
+  .hero-ecg-line{fill:none;stroke:var(--mint);stroke-width:2.2;filter:drop-shadow(0 0 8px rgba(52,228,180,.5));stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw 3.2s ease-out forwards;}
+  @keyframes draw{to{stroke-dashoffset:0;}}
+
+  .stat-strip{display:flex;gap:28px;margin-top:26px;}
+  .stat-strip div{font-family:'JetBrains Mono',monospace;}
+  .stat-strip .n{color:var(--mint);font-size:18px;font-weight:600;display:block;}
+  .stat-strip .l{color:var(--muted);font-size:11px;}
+
+  .auth-form-wrap{display:flex;align-items:center;justify-content:center;padding:40px;}
+  .auth-card{width:100%;max-width:380px;}
+  .auth-tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:4px;margin-bottom:26px;}
+  .auth-tab{flex:1;text-align:center;padding:9px;border-radius:6px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;}
+  .auth-tab.active{background:var(--mint);color:#04140F;}
+  .auth-card h2{margin:0 0 6px;font-size:24px;}
+  .auth-card .modal-sub{margin-bottom:24px;}
+  .auth-err{background:rgba(255,107,107,.1);border:1px solid #7a2626;color:#ffb3b3;padding:10px 13px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none;}
+  .full{width:100%;justify-content:center;margin-top:6px;}
+  .auth-foot{text-align:center;margin-top:18px;font-size:13px;color:var(--muted);}
+
+  /* ---------- Toast ---------- */
+  #toast{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:100;}
+  .toast{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--mint);border-radius:9px;padding:12px 16px;font-size:13.5px;min-width:240px;box-shadow:0 10px 30px rgba(0,0,0,.35);animation:toastIn .25s ease;}
+  .toast.err{border-left-color:var(--coral);}
+  @keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+  @media(max-width:900px){
+    #auth{grid-template-columns:1fr;}
+    .auth-hero{display:none;}
+    #app.active{grid-template-columns:1fr;}
+    .sidebar{position:fixed;left:0;bottom:0;top:auto;width:100%;height:auto;flex-direction:row;padding:10px 14px;z-index:40;}
+    .brand,.sidebar-foot{display:none;}
+    nav.navlist{flex-direction:row;flex:1;justify-content:space-around;}
+    .navlink span{display:none;}
+    main.content{padding:24px 18px 90px;}
+    .stat-grid{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= AUTH SCREEN ================= -->
+<div id="auth">
+  <div class="auth-hero">
+    <div class="tag">// SECURE CLINICAL RECORDS SYSTEM</div>
+    <h1 class="serif">Every patient,<br>every doctor,<br>one heartbeat of data.</h1>
+    <p>A Django &amp; DRF backend for hospitals to manage patient records, doctor rosters and care assignments — authenticated end-to-end with JWT.</p>
+    <div class="hero-ecg-box">
+      <div class="hlabel"><span>LIVE FEED</span><span id="hero-time" class="mono"></span></div>
+      <svg class="hero-ecg" viewBox="0 0 460 100" preserveAspectRatio="none">
+        <path class="hero-ecg-line" d="M0,50 L60,50 L80,50 L92,20 L104,80 L116,50 L140,50 L160,50 L172,35 L184,65 L196,50 L230,50 L250,50 L262,20 L274,80 L286,50 L310,50 L330,50 L342,35 L354,65 L366,50 L460,50"/>
+      </svg>
+    </div>
+    <div class="stat-strip">
+      <div><span class="n">JWT</span><span class="l">AUTH STANDARD</span></div>
+      <div><span class="n">PostgreSQL</span><span class="l">DATA STORE</span></div>
+      <div><span class="n">99.9%</span><span class="l">UPTIME TARGET</span></div>
+    </div>
+  </div>
+
+  <div class="auth-form-wrap">
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <div class="auth-tab active" data-tab="login" onclick="switchAuthTab('login')">Log in</div>
+        <div class="auth-tab" data-tab="register" onclick="switchAuthTab('register')">Register</div>
+      </div>
+
+      <div id="login-pane">
+        <h2 class="serif">Welcome back</h2>
+        <p class="modal-sub">Sign in to your clinical dashboard.</p>
+        <div class="auth-err" id="login-err"></div>
+        <form onsubmit="return handleLogin(event)">
+          <div class="field"><label>Email</label><input type="email" id="login-email" required placeholder="you@hospital.com"></div>
+          <div class="field"><label>Password</label><input type="password" id="login-password" required placeholder="••••••••"></div>
+          <button class="btn full" type="submit">Sign in</button>
+        </form>
+        <div class="auth-foot">New here? <a href="#" onclick="switchAuthTab('register');return false;" style="color:var(--mint);font-weight:600;text-decoration:none;">Create an account</a></div>
+      </div>
+
+      <div id="register-pane" style="display:none;">
+        <h2 class="serif">Create account</h2>
+        <p class="modal-sub">Register to start managing records.</p>
+        <div class="auth-err" id="register-err"></div>
+        <form onsubmit="return handleRegister(event)">
+          <div class="field"><label>Full name</label><input type="text" id="reg-name" required placeholder="Dr. Ayesha Khan"></div>
+          <div class="field"><label>Email</label><input type="email" id="reg-email" required placeholder="you@hospital.com"></div>
+          <div class="field"><label>Password</label><input type="password" id="reg-password" required minlength="8" placeholder="At least 8 characters"></div>
+          <button class="btn full" type="submit">Create account</button>
+        </form>
+        <div class="auth-foot">Already registered? <a href="#" onclick="switchAuthTab('login');return false;" style="color:var(--mint);font-weight:600;text-decoration:none;">Sign in</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= APP SHELL ================= -->
+<div id="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="pulse-dot"></div>
+      <div class="brand-name">Vital<span>s</span></div>
+    </div>
+    <nav class="navlist">
+      <div class="navlink active" data-page="overview" onclick="goTo('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l2 8 4-16 2 8h6"/></svg>
+        <span>Overview</span>
+      </div>
+      <div class="navlink" data-page="patients" onclick="goTo('patients')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.2c1.6.4 2.7 1.8 2.7 3.4 0 1.6-1.1 3-2.7 3.4M19 14.6c2 .5 3.5 2 3.5 4.2"/></svg>
+        <span>Patients</span>
+      </div>
+      <div class="navlink" data-page="doctors" onclick="goTo('doctors')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3v4a3 3 0 006 0V3"/><path d="M6 8v3a6 6 0 0012 0V8"/><circle cx="12" cy="19" r="2"/></svg>
+        <span>Doctors</span>
+      </div>
+      <div class="navlink" data-page="mappings" onclick="goTo('mappings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><path d="M8 7.5L16 16.5"/></svg>
+        <span>Assignments</span>
+      </div>
+      <div class="navlink" data-page="apidocs" onclick="goTo('apidocs')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l5 5v13a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M9 12h6M9 16h6M9 8h3"/></svg>
+        <span>API Reference</span>
+      </div>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="who">
+        <div class="avatar" id="user-initial">U</div>
+        <div>
+          <div class="who-name" id="user-name">—</div>
+          <div class="who-mail" id="user-email">—</div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="logout()">Sign out</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <!-- OVERVIEW -->
+    <section class="page active" id="page-overview">
+      <div class="page-head">
+        <div><h1 class="page-title">Overview</h1><p class="page-sub">A pulse-check on everything in your system right now.</p></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Total patients</div><div class="stat-value" id="stat-patients">0</div></div>
+        <div class="stat-card"><div class="stat-label">Registered doctors</div><div class="stat-value" id="stat-doctors">0</div></div>
+        <div class="stat-card"><div class="stat-label">Active assignments</div><div class="stat-value" id="stat-mappings">0</div></div>
+        <div class="stat-card"><div class="stat-label">Currently admitted</div><div class="stat-value" id="stat-admitted">0</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>System pulse</h3><span class="pill mint mono" id="pulse-label">LIVE</span></div>
+        <div class="ecg-wrap">
+          <svg class="ecg" viewBox="0 0 900 84" preserveAspectRatio="none">
+            <path class="ecg-path" id="ecg-live" d="M0,42 L60,42 L80,42 L92,14 L104,68 L116,42 L900,42"/>
+          </svg>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Recently added patients</h3><span class="pill" style="cursor:pointer" onclick="goTo('patients')">View all</span></div>
+        <table><tbody id="overview-recent"></tbody></table>
+      </div>
+    </section>
+
+    <!-- PATIENTS -->
+    <section class="page" id="page-patients">
+      <div class="page-head">
+        <div><h1 class="page-title">Patients</h1><p class="page-sub">Records you've created and manage.</p></div>
+        <button class="btn" onclick="openPatientModal()">+ Add patient</button>
+      </div>
+      <div class="panel">
+        <table>
+          <thead><tr><th>Patient</th><th>Age / Gender</th><th>Blood group</th><th>Diagnosis</th><th>Status</th><th></th></tr></thead>
+          <tbody id="patients-table"></tbody>
+        </table>
+        <div class="empty" id="patients-empty" style="display:none;"><span class="serif">No patients yet</span>Add your first patient record to get started.</div>
+      </div>
+    </section>
+
+    <!-- DOCTORS -->
+    <section class="page" id="page-doctors">
+      <div class="page-head">
+        <div><h1 class="page-title">Doctors</h1><p class="page-sub">Every clinician registered in the system.</p></div>
+        <button class="btn" onclick="openDoctorModal()">+ Add doctor</button>
+      </div>
+      <div class="panel">
+        <table>
+          <thead><tr><th>Doctor</th><th>Specialization</th><th>Experience</th><th>Hospital</th><th>Patients</th><th></th></tr></thead>
+          <tbody id="doctors-table"></tbody>
+        </table>
+        <div class="empty" id="doctors-empty" style="display:none;"><span class="serif">No doctors yet</span>Add a doctor to start assigning patients.</div>
+      </div>
+    </section>
+
+    <!-- MAPPINGS -->
+    <section class="page" id="page-mappings">
+      <div class="page-head">
+        <div><h1 class="page-title">Assignments</h1><p class="page-sub">Which doctor is treating which patient.</p></div>
+        <button class="btn" onclick="openMappingModal()">+ Assign doctor</button>
+      </div>
+      <div class="panel">
+        <table>
+          <thead><tr><th>Patient</th><th>Doctor</th><th>Specialization</th><th>Notes</th><th>Assigned</th><th></th></tr></thead>
+          <tbody id="mappings-table"></tbody>
+        </table>
+        <div class="empty" id="mappings-empty" style="display:none;"><span class="serif">No assignments yet</span>Assign a doctor to a patient to see it here.</div>
+      </div>
+    </section>
+
+    <!-- API DOCS -->
+    <section class="page" id="page-apidocs">
+      <div class="page-head">
+        <div><h1 class="page-title">API Reference</h1><p class="page-sub">Every endpoint this backend exposes.</p></div>
+        <a class="btn ghost" href="/api/docs/" target="_blank">Open Swagger UI ↗</a>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Authentication</h3></div>
+        <table>
+          <tbody>
+            <tr><td class="mono pill mint" style="border:none;">POST</td><td class="mono">/api/auth/register/</td><td>Create a new account</td></tr>
+            <tr><td class="mono pill mint" style="border:none;">POST</td><td class="mono">/api/auth/login/</td><td>Log in, receive JWT tokens</td></tr>
+            <tr><td class="mono pill mint" style="border:none;">POST</td><td class="mono">/api/auth/refresh/</td><td>Refresh an access token</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Patients</h3></div>
+        <table><tbody>
+          <tr><td class="mono pill" style="border:none;">GET</td><td class="mono">/api/patients/</td><td>List your patients</td></tr>
+          <tr><td class="mono pill mint" style="border:none;">POST</td><td class="mono">/api/patients/</td><td>Add a patient</td></tr>
+          <tr><td class="mono pill" style="border:none;">GET</td><td class="mono">/api/patients/&lt;id&gt;/</td><td>Patient details</td></tr>
+          <tr><td class="mono pill amber" style="border:none;">PUT</td><td class="mono">/api/patients/&lt;id&gt;/</td><td>Update a patient</td></tr>
+          <tr><td class="mono pill" style="color:var(--coral);border-color:#7a2626;">DELETE</td><td class="mono">/api/patients/&lt;id&gt;/</td><td>Remove a patient</td></tr>
+        </tbody></table>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>Doctors &amp; Assignments</h3></div>
+        <table><tbody>
+          <tr><td class="mono pill" style="border:none;">GET</td><td class="mono">/api/doctors/</td><td>List all doctors</td></tr>
+          <tr><td class="mono pill mint" style="border:none;">POST</td><td class="mono">/api/doctors/</td><td>Add a doctor</td></tr>
+          <tr><td class="mono pill" style="border:none;">GET</td><td class="mono">/api/mappings/</td><td>List assignments</td></tr>
+          <tr><td class="mono pill mint" style="border:none;">POST</td><td class="mono">/api/mappings/</td><td>Assign a doctor to a patient</td></tr>
+          <tr><td class="mono pill" style="border:none;">GET</td><td class="mono">/api/mappings/&lt;patient_id&gt;/</td><td>Doctors for one patient</td></tr>
+          <tr><td class="mono pill" style="color:var(--coral);border-color:#7a2626;">DELETE</td><td class="mono">/api/mappings/&lt;id&gt;/</td><td>Remove an assignment</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ================= MODALS ================= -->
+<div class="overlay" id="patient-modal">
+  <div class="modal">
+    <h3 id="patient-modal-title" class="serif">Add patient</h3>
+    <p class="modal-sub">Enter the patient's details below.</p>
+    <form onsubmit="return savePatient(event)">
+      <input type="hidden" id="patient-id">
+      <div class="field"><label>Full name</label><input type="text" id="patient-name" required></div>
+      <div class="field-row">
+        <div class="field"><label>Age</label><input type="number" id="patient-age" min="0" max="130" required></div>
+        <div class="field"><label>Gender</label>
+          <select id="patient-gender"><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Contact number</label><input type="text" id="patient-contact" required></div>
+        <div class="field"><label>Blood group</label>
+          <select id="patient-blood"><option value="unknown">Unknown</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option></select>
+        </div>
+      </div>
+      <div class="field"><label>Diagnosis / condition</label><input type="text" id="patient-diagnosis"></div>
+      <div class="field"><label>Address</label><input type="text" id="patient-address"></div>
+      <div class="checkbox-row"><input type="checkbox" id="patient-admitted"><label for="patient-admitted">Currently admitted</label></div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal('patient-modal')">Cancel</button>
+        <button type="submit" class="btn">Save patient</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="doctor-modal">
+  <div class="modal">
+    <h3 id="doctor-modal-title" class="serif">Add doctor</h3>
+    <p class="modal-sub">Register a clinician into the system.</p>
+    <form onsubmit="return saveDoctor(event)">
+      <input type="hidden" id="doctor-id">
+      <div class="field"><label>Full name</label><input type="text" id="doctor-name" required placeholder="Dr. ..."></div>
+      <div class="field-row">
+        <div class="field"><label>Specialization</label>
+          <select id="doctor-spec">
+            <option value="general">General Physician</option><option value="cardiology">Cardiology</option><option value="dermatology">Dermatology</option><option value="neurology">Neurology</option><option value="orthopedics">Orthopedics</option><option value="pediatrics">Pediatrics</option><option value="psychiatry">Psychiatry</option><option value="gynecology">Gynecology</option><option value="ent">ENT</option><option value="dentistry">Dentistry</option><option value="other">Other</option>
+          </select>
+        </div>
+        <div class="field"><label>Experience (yrs)</label><input type="number" id="doctor-exp" min="0" max="70" value="0" required></div>
+      </div>
+      <div class="field"><label>Phone number</label><input type="text" id="doctor-phone" required></div>
+      <div class="field"><label>Email</label><input type="email" id="doctor-email"></div>
+      <div class="field"><label>Hospital / clinic</label><input type="text" id="doctor-hospital"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal('doctor-modal')">Cancel</button>
+        <button type="submit" class="btn">Save doctor</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="mapping-modal">
+  <div class="modal">
+    <h3 class="serif">Assign doctor to patient</h3>
+    <p class="modal-sub">Link a doctor to one of your patients.</p>
+    <form onsubmit="return saveMapping(event)">
+      <div class="field"><label>Patient</label><select id="mapping-patient" required></select></div>
+      <div class="field"><label>Doctor</label><select id="mapping-doctor" required></select></div>
+      <div class="field"><label>Notes (optional)</label><input type="text" id="mapping-notes" placeholder="e.g. Primary cardiologist"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" onclick="closeModal('mapping-modal')">Cancel</button>
+        <button type="submit" class="btn">Assign</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ==========================================================================
+   Vitals — dashboard front-end for the Healthcare Backend API
+   Vanilla JS, talks to same-origin /api/ endpoints using fetch + JWT.
+   ========================================================================== */
+const API = "/api";
+let ACCESS = localStorage.getItem("vitals_access") || null;
+let REFRESH = localStorage.getItem("vitals_refresh") || null;
+let ME = JSON.parse(localStorage.getItem("vitals_user") || "null");
+
+let cache = { patients: [], doctors: [], mappings: [] };
+
+// ---------- generic API helper with auto refresh ----------
+async function api(path, opts = {}) {
+  opts.headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+  if (ACCESS) opts.headers["Authorization"] = "Bearer " + ACCESS;
+  let res = await fetch(API + path, opts);
+  if (res.status === 401 && REFRESH) {
+    const ok = await tryRefresh();
+    if (ok) {
+      opts.headers["Authorization"] = "Bearer " + ACCESS;
+      res = await fetch(API + path, opts);
+    }
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) {
+    const msg = (data && (data.message || JSON.stringify(data.errors))) || "Request failed.";
+    throw new Error(msg);
+  }
+  return data;
+}
+
+async function tryRefresh() {
+  try {
+    const res = await fetch(API + "/auth/refresh/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: REFRESH }),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    ACCESS = data.access;
+    localStorage.setItem("vitals_access", ACCESS);
+    return true;
+  } catch (e) { return false; }
+}
+
+// ---------- toast ----------
+function toast(msg, isErr) {
+  const el = document.createElement("div");
+  el.className = "toast" + (isErr ? " err" : "");
+  el.textContent = msg;
+  document.getElementById("toast").appendChild(el);
+  setTimeout(() => el.remove(), 3600);
+}
+
+// ---------- auth tabs ----------
+function switchAuthTab(tab) {
+  document.querySelectorAll(".auth-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
+  document.getElementById("login-pane").style.display = tab === "login" ? "block" : "none";
+  document.getElementById("register-pane").style.display = tab === "register" ? "block" : "none";
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const errBox = document.getElementById("login-err");
+  errBox.style.display = "none";
+  try {
+    const res = await fetch(API + "/auth/login/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: document.getElementById("login-email").value,
+        password: document.getElementById("login-password").value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Login failed.");
+    setSession(data.data.tokens.access, data.data.tokens.refresh, data.data.user);
+    enterApp();
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.style.display = "block";
+  }
+  return false;
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const errBox = document.getElementById("register-err");
+  errBox.style.display = "none";
+  try {
+    const res = await fetch(API + "/auth/register/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: document.getElementById("reg-name").value,
+        email: document.getElementById("reg-email").value,
+        password: document.getElementById("reg-password").value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Registration failed.");
+    setSession(data.data.tokens.access, data.data.tokens.refresh, { email: data.data.email, username: data.data.name });
+    toast("Account created — welcome!");
+    enterApp();
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.style.display = "block";
+  }
+  return false;
+}
+
+function setSession(access, refresh, user) {
+  ACCESS = access; REFRESH = refresh; ME = user;
+  localStorage.setItem("vitals_access", access);
+  localStorage.setItem("vitals_refresh", refresh);
+  localStorage.setItem("vitals_user", JSON.stringify(user));
+}
+
+function logout() {
+  localStorage.removeItem("vitals_access");
+  localStorage.removeItem("vitals_refresh");
+  localStorage.removeItem("vitals_user");
+  ACCESS = null; REFRESH = null; ME = null;
+  document.getElementById("app").classList.remove("active");
+  document.getElementById("auth").style.display = "grid";
+}
+
+function enterApp() {
+  document.getElementById("auth").style.display = "none";
+  document.getElementById("app").classList.add("active");
+  const name = ME && (ME.first_name ? (ME.first_name + " " + (ME.last_name||"")).trim() : (ME.username || ME.email));
+  document.getElementById("user-name").textContent = name || "User";
+  document.getElementById("user-email").textContent = (ME && ME.email) || "";
+  document.getElementById("user-initial").textContent = (name || "U").charAt(0).toUpperCase();
+  refreshAll();
+}
+
+// ---------- navigation ----------
+function goTo(page) {
+  document.querySelectorAll(".navlink").forEach(n => n.classList.toggle("active", n.dataset.page === page));
+  document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === "page-" + page));
+}
+
+// ---------- data loading ----------
+async function refreshAll() {
+  try {
+    const [p, d, m] = await Promise.all([
+      api("/patients/?page_size=100"),
+      api("/doctors/?page_size=100"),
+      api("/mappings/?page_size=100"),
+    ]);
+    cache.patients = p.data.results || p.data;
+    cache.doctors = d.data.results || d.data;
+    cache.mappings = m.data.results || m.data;
+    renderOverview();
+    renderPatients();
+    renderDoctors();
+    renderMappings();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+function renderOverview() {
+  document.getElementById("stat-patients").textContent = cache.patients.length;
+  document.getElementById("stat-doctors").textContent = cache.doctors.length;
+  document.getElementById("stat-mappings").textContent = cache.mappings.length;
+  document.getElementById("stat-admitted").textContent = cache.patients.filter(p => p.admitted).length;
+
+  const recent = cache.patients.slice(0, 5);
+  const tbody = document.getElementById("overview-recent");
+  tbody.innerHTML = recent.length ? recent.map(p => `
+    <tr>
+      <td><div class="cell-main">${esc(p.name)}</div><div class="cell-sub">${p.age} yrs · ${cap(p.gender)}</div></td>
+      <td>${p.diagnosis ? esc(p.diagnosis) : '<span class="cell-sub">No diagnosis recorded</span>'}</td>
+      <td style="text-align:right;">${p.admitted ? '<span class="pill amber">Admitted</span>' : '<span class="pill">Outpatient</span>'}</td>
+    </tr>`).join("") : `<tr><td class="empty">No patients yet — add one from the Patients tab.</td></tr>`;
+}
+
+function renderPatients() {
+  const tbody = document.getElementById("patients-table");
+  const empty = document.getElementById("patients-empty");
+  empty.style.display = cache.patients.length ? "none" : "block";
+  tbody.innerHTML = cache.patients.map(p => `
+    <tr>
+      <td><div class="cell-main">${esc(p.name)}</div><div class="cell-sub mono">${esc(p.contact_number)}</div></td>
+      <td>${p.age} · ${cap(p.gender)}</td>
+      <td><span class="pill">${p.blood_group}</span></td>
+      <td>${p.diagnosis ? esc(p.diagnosis) : '<span class="cell-sub">—</span>'}</td>
+      <td>${p.admitted ? '<span class="pill amber">Admitted</span>' : '<span class="pill mint">Outpatient</span>'}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick='openPatientModal(${JSON.stringify(p)})' title="Edit">${ICON.edit}</button>
+        <button class="icon-btn del" onclick="deletePatient(${p.id}, '${escAttr(p.name)}')" title="Delete">${ICON.trash}</button>
+      </div></td>
+    </tr>`).join("");
+}
+
+function renderDoctors() {
+  const tbody = document.getElementById("doctors-table");
+  const empty = document.getElementById("doctors-empty");
+  empty.style.display = cache.doctors.length ? "none" : "block";
+  tbody.innerHTML = cache.doctors.map(d => `
+    <tr>
+      <td><div class="cell-main">${esc(d.name)}</div><div class="cell-sub mono">${esc(d.phone_number)}</div></td>
+      <td><span class="pill mint">${esc(d.specialization_display || d.specialization)}</span></td>
+      <td>${d.experience_years} yrs</td>
+      <td>${d.hospital_name ? esc(d.hospital_name) : '<span class="cell-sub">—</span>'}</td>
+      <td>${d.patient_count || 0}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick='openDoctorModal(${JSON.stringify(d)})' title="Edit">${ICON.edit}</button>
+        <button class="icon-btn del" onclick="deleteDoctor(${d.id}, '${escAttr(d.name)}')" title="Delete">${ICON.trash}</button>
+      </div></td>
+    </tr>`).join("");
+}
+
+function renderMappings() {
+  const tbody = document.getElementById("mappings-table");
+  const empty = document.getElementById("mappings-empty");
+  empty.style.display = cache.mappings.length ? "none" : "block";
+  tbody.innerHTML = cache.mappings.map(m => `
+    <tr>
+      <td class="cell-main">${esc(m.patient_name)}</td>
+      <td class="cell-main">Dr. ${esc(m.doctor_name)}</td>
+      <td><span class="pill">${esc(m.doctor_specialization)}</span></td>
+      <td>${m.notes ? esc(m.notes) : '<span class="cell-sub">—</span>'}</td>
+      <td class="cell-sub">${new Date(m.assigned_date).toLocaleDateString()}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn del" onclick="deleteMapping(${m.id})" title="Remove">${ICON.trash}</button>
+      </div></td>
+    </tr>`).join("");
+}
+
+const ICON = {
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a1 1 0 001 1h8a1 1 0 001-1l1-13"/><path d="M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>',
+};
+
+function esc(s){ return (s ?? "").toString().replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function escAttr(s){ return esc(s).replace(/'/g, "&#39;"); }
+function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+
+// ---------- modals: patients ----------
+function openPatientModal(p) {
+  document.getElementById("patient-modal-title").textContent = p ? "Edit patient" : "Add patient";
+  document.getElementById("patient-id").value = p ? p.id : "";
+  document.getElementById("patient-name").value = p ? p.name : "";
+  document.getElementById("patient-age").value = p ? p.age : "";
+  document.getElementById("patient-gender").value = p ? p.gender : "male";
+  document.getElementById("patient-contact").value = p ? p.contact_number : "";
+  document.getElementById("patient-blood").value = p ? p.blood_group : "unknown";
+  document.getElementById("patient-diagnosis").value = p ? (p.diagnosis || "") : "";
+  document.getElementById("patient-address").value = p ? (p.address || "") : "";
+  document.getElementById("patient-admitted").checked = p ? p.admitted : false;
+  document.getElementById("patient-modal").classList.add("active");
+}
+function closeModal(id){ document.getElementById(id).classList.remove("active"); }
+
+async function savePatient(e) {
+  e.preventDefault();
+  const id = document.getElementById("patient-id").value;
+  const payload = {
+    name: document.getElementById("patient-name").value,
+    age: parseInt(document.getElementById("patient-age").value, 10),
+    gender: document.getElementById("patient-gender").value,
+    contact_number: document.getElementById("patient-contact").value,
+    blood_group: document.getElementById("patient-blood").value,
+    diagnosis: document.getElementById("patient-diagnosis").value,
+    address: document.getElementById("patient-address").value,
+    admitted: document.getElementById("patient-admitted").checked,
+  };
+  try {
+    if (id) await api(`/patients/${id}/`, { method: "PUT", body: JSON.stringify(payload) });
+    else await api("/patients/", { method: "POST", body: JSON.stringify(payload) });
+    closeModal("patient-modal");
+    toast(id ? "Patient updated." : "Patient added.");
+    refreshAll();
+  } catch (err) { toast(err.message, true); }
+  return false;
+}
+
+async function deletePatient(id, name) {
+  if (!confirm(`Delete patient record for ${name}? This cannot be undone.`)) return;
+  try {
+    await api(`/patients/${id}/`, { method: "DELETE" });
+    toast("Patient record deleted.");
+    refreshAll();
+  } catch (err) { toast(err.message, true); }
+}
+
+// ---------- modals: doctors ----------
+function openDoctorModal(d) {
+  document.getElementById("doctor-modal-title").textContent = d ? "Edit doctor" : "Add doctor";
+  document.getElementById("doctor-id").value = d ? d.id : "";
+  document.getElementById("doctor-name").value = d ? d.name : "";
+  document.getElementById("doctor-spec").value = d ? d.specialization : "general";
+  document.getElementById("doctor-exp").value = d ? d.experience_years : 0;
+  document.getElementById("doctor-phone").value = d ? d.phone_number : "";
+  document.getElementById("doctor-email").value = d ? (d.email || "") : "";
+  document.getElementById("doctor-hospital").value = d ? (d.hospital_name || "") : "";
+  document.getElementById("doctor-modal").classList.add("active");
+}
+
+async function saveDoctor(e) {
+  e.preventDefault();
+  const id = document.getElementById("doctor-id").value;
+  const payload = {
+    name: document.getElementById("doctor-name").value,
+    specialization: document.getElementById("doctor-spec").value,
+    experience_years: parseInt(document.getElementById("doctor-exp").value, 10),
+    phone_number: document.getElementById("doctor-phone").value,
+    email: document.getElementById("doctor-email").value,
+    hospital_name: document.getElementById("doctor-hospital").value,
+  };
+  try {
+    if (id) await api(`/doctors/${id}/`, { method: "PUT", body: JSON.stringify(payload) });
+    else await api("/doctors/", { method: "POST", body: JSON.stringify(payload) });
+    closeModal("doctor-modal");
+    toast(id ? "Doctor updated." : "Doctor added.");
+    refreshAll();
+  } catch (err) { toast(err.message, true); }
+  return false;
+}
+
+async function deleteDoctor(id, name) {
+  if (!confirm(`Remove Dr. ${name} from the system?`)) return;
+  try {
+    await api(`/doctors/${id}/`, { method: "DELETE" });
+    toast("Doctor record deleted.");
+    refreshAll();
+  } catch (err) { toast(err.message, true); }
+}
+
+// ---------- modals: mappings ----------
+function openMappingModal() {
+  const pSel = document.getElementById("mapping-patient");
+  const dSel = document.getElementById("mapping-doctor");
+  pSel.innerHTML = cache.patients.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join("") || `<option disabled>No patients yet</option>`;
+  dSel.innerHTML = cache.doctors.map(d => `<option value="${d.id}">Dr. ${esc(d.name)} — ${esc(d.specialization_display||d.specialization)}</option>`).join("") || `<option disabled>No doctors yet</option>`;
+  document.getElementById("mapping-notes").value = "";
+  document.getElementById("mapping-modal").classList.add("active");
+}
+
+async function saveMapping(e) {
+  e.preventDefault();
+  const payload = {
+    patient: parseInt(document.getElementById("mapping-patient").value, 10),
+    doctor: parseInt(document.getElementById("mapping-doctor").value, 10),
+    notes: document.getElementById("mapping-notes").value,
+  };
+  try {
+    await api("/mappings/", { method: "POST", body: JSON.stringify(payload) });
+    closeModal("mapping-modal");
+    toast("Doctor assigned to patient.");
+    refreshAll();
+  } catch (err) { toast(err.message, true); }
+  return false;
+}
+
+async function deleteMapping(id) {
+  if (!confirm("Remove this assignment?")) return;
+  try {
+    await api(`/mappings/${id}/`, { method: "DELETE" });
+    toast("Assignment removed.");
+    refreshAll();
+  } catch (err) { toast(err.message, true); }
+}
+
+// ---------- boot ----------
+(function boot(){
+  const timeEl = document.getElementById("hero-time");
+  if (timeEl) setInterval(() => { timeEl.textContent = new Date().toLocaleTimeString(); }, 1000);
+
+  if (ACCESS && ME) { enterApp(); } else { document.getElementById("auth").style.display = "grid"; }
+})();
+</script>
+</body>
+</html>
